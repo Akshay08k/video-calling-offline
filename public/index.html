@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LAN PULSE // Offline SFU Team Communicator</title>
+  <meta name="description" content="Local network team communication web application with SFU group video calls, chunked file sharing, and zero internet dependency.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>">
+</head>
+<body>
+
+  <!-- JOIN ROOM MODAL -->
+  <div id="join-modal" class="modal-overlay">
+    <div class="join-card">
+      <div class="brand-header">
+        <div class="brand-badge">
+          <span class="pulse-dot"></span> LAN PULSE // SFU COMM
+        </div>
+        <h1 class="brand-title">Offline Team Node</h1>
+        <p class="brand-subtitle">Connect to your local network communication server</p>
+      </div>
+
+      <form id="join-form">
+        <div class="form-group">
+          <label class="form-label" for="username-input">Callsign / Nickname</label>
+          <input type="text" id="username-input" class="input-field" placeholder="e.g. Alex, Operator-1" maxlength="30" required autofocus>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="room-input">Room / Node Name</label>
+          <input type="text" id="room-input" class="input-field" placeholder="e.g. general, engineering" value="general" maxlength="30" required>
+          <div class="room-presets">
+            <span class="preset-chip" data-room="general">#general</span>
+            <span class="preset-chip" data-room="engineering">#engineering</span>
+            <span class="preset-chip" data-room="field-ops">#field-ops</span>
+            <span class="preset-chip" data-room="command">#command</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="btn-join-submit">
+          <span>Connect to Network Node</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </button>
+      </form>
+
+      <div class="server-ip-info">
+        <div>Host Network Access Addresses (HTTPS):</div>
+        <div class="ip-badge-list" id="modal-ip-list">
+          <div class="ip-badge">Loading network interfaces...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP WORKSPACE -->
+  <div class="app-container" id="app-container">
+    
+    <!-- HEADER BAR -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="header-logo-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1.9 16.1 1.9 11.3 4.9 8.3"/><path d="M7.8 16.2c-1.6-1.6-1.6-4.1 0-5.7"/><path d="M10.6 13.4c-.8-.8-.8-2 0-2.8"/><circle cx="12" cy="12" r="1"/><path d="M13.4 10.6c.8.8.8 2 0 2.8"/><path d="M16.2 7.8c1.6 1.6 1.6 4.1 0 5.7"/><path d="M19.1 4.9c3 3 3 7.8 0 10.8"/></svg>
+        </div>
+        <div class="header-title-box">
+          <div class="header-app-name">
+            LAN PULSE <span class="header-room-tag" id="current-room-display">#general</span>
+          </div>
+          <div class="header-subinfo" id="current-user-display">Connecting...</div>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- GROUP CALL BUTTON -->
+        <button class="btn-group-call-trigger" id="btn-join-group-call" title="Join SFU multi-peer room video call">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          <span>Join Room Call</span>
+        </button>
+
+        <div class="lan-ip-display" id="header-lan-ip">
+          <span>LAN IP:</span> <strong id="header-ip-value">https://192.168.X.X:3000</strong>
+        </div>
+        <button class="btn-disconnect" id="btn-leave-room">Disconnect</button>
+      </div>
+    </header>
+
+    <!-- MOBILE TABS BAR -->
+    <div class="mobile-tabs">
+      <button class="mobile-tab-btn active" id="tab-chat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Chat</span>
+      </button>
+      <button class="mobile-tab-btn" id="tab-peers">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Peers (<span id="mobile-peer-count">0</span>)</span>
+      </button>
+      <button class="mobile-tab-btn" id="tab-info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span>Network Info</span>
+      </button>
+    </div>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="main-body">
+      
+      <!-- SIDEBAR (PEERS & SERVER INFO) -->
+      <aside class="sidebar" id="sidebar">
+        <!-- SERVER METADATA SECTION -->
+        <div class="sidebar-section">
+          <div class="sidebar-title">
+            <span>Local SFU Node</span>
+            <span class="pulse-dot"></span>
+          </div>
+          <div style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px;">
+            <div>Server Port: <span style="color: var(--cyan-primary);" id="sidebar-port">3000</span></div>
+            <div>Engine: <span style="color: var(--emerald-pulse);">Mediasoup SFU</span></div>
+          </div>
+        </div>
+
+        <!-- PEERS LIST SECTION -->
+        <div class="sidebar-section" style="border-bottom: none; padding-bottom: 8px;">
+          <div class="sidebar-title">
+            <span>Connected Peers</span>
+            <span class="user-count-badge" id="peer-count-badge">0</span>
+          </div>
+        </div>
+
+        <ul class="peer-list" id="peer-list">
+          <!-- Dynamically populated peer cards -->
+        </ul>
+      </aside>
+
+      <!-- MAIN CHAT & FILE HUB -->
+      <main class="chat-container">
+        
+        <!-- MESSAGES THREAD -->
+        <div class="messages-thread" id="messages-thread">
+          <div class="system-notice-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>Secure offline LAN channel established. Zero cloud dependency.</span>
+          </div>
+        </div>
+
+        <!-- TYPING INDICATOR -->
+        <div class="typing-bar" id="typing-bar" style="visibility: hidden;">
+          <span id="typing-text">Someone is typing</span>
+          <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+
+        <!-- DROPZONE OVERLAY FOR FILE DRAG-AND-DROP -->
+        <div class="dropzone-overlay" id="dropzone-overlay">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--cyan-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <div style="font-size: 18px; font-weight: 700;">Drop File to Share with LAN Room</div>
+          <div style="font-size: 13px; color: var(--text-muted);">Direct chunked socket transfer</div>
+        </div>
+
+        <!-- CHAT INPUT DOCK -->
+        <div class="chat-input-bar">
+          <input type="file" id="file-input" style="display: none;">
+          <button class="file-attach-btn" id="btn-attach-file" title="Share file over LAN">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          
+          <input type="text" class="chat-text-input" id="chat-input" placeholder="Type a message or drop a file to room..." autocomplete="off">
+          
+          <button class="btn-send-message" id="btn-send" title="Send message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- INCOMING CALL POPUP ALERT (1:1 CALL) -->
+  <div class="incoming-call-alert hidden" id="incoming-call-alert">
+    <div class="incoming-caller-info">
+      <div class="caller-name-text" id="caller-name">Peer Calls You</div>
+      <div class="call-type-badge" id="caller-type">Incoming Call</div>
+    </div>
+    <div class="incoming-call-actions">
+      <button class="btn-accept-call" id="btn-accept-call">Accept</button>
+      <button class="btn-decline-call" id="btn-decline-call">Decline</button>
+    </div>
+  </div>
+
+  <!-- WebRTC MULTI-PEER SFU GROUP & 1:1 CALL OVERLAY -->
+  <div class="call-overlay hidden" id="call-overlay">
+    <div class="call-header">
+      <div class="call-peer-title">
+        <span class="pulse-dot"></span>
+        <span id="call-overlay-title">Room Call</span>
+      </div>
+      <div style="font-family: var(--font-mono); font-size: 13px; color: var(--cyan-primary);">
+        Mediasoup SFU Mode • Square 1:1 Grid Active
+      </div>
+    </div>
+
+    <!-- DYNAMIC RESPONSIVE SQUARE 1:1 VIDEO GRID WORKSPACE -->
+    <div class="call-video-workspace" id="call-video-workspace">
+      <!-- Square 1:1 Video tiles dynamically inserted here -->
+    </div>
+
+    <!-- Call Control Toolbar -->
+    <div class="call-controls-bar">
+      <button class="btn-call-control" id="btn-toggle-mic" title="Toggle Microphone">
+        <svg id="icon-mic-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+        <svg id="icon-mic-off" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      </button>
+      <button class="btn-call-control" id="btn-toggle-cam" title="Toggle Camera">
+        <svg id="icon-cam-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <svg id="icon-cam-off" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      </button>
+      <button class="btn-call-control active-feature" id="btn-toggle-denoise" title="RNNoise AI Noise Suppression (Active)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10v4"/><path d="M6 6v12"/><path d="M10 3v18"/><path d="M14 8v8"/><path d="M18 5v14"/><path d="M22 10v4"/></svg>
+      </button>
+      <button class="btn-call-control hangup" id="btn-hangup" title="Leave Call">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 2.59 3.4z"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Client Libraries -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/mediasoup-client.min.js"></script>
+  <script src="js/audioEffect.js"></script>
+  <script src="js/fileTransfer.js"></script>
+  <script src="js/noiseSuppression.js"></script>
+  <script src="js/webrtc.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
